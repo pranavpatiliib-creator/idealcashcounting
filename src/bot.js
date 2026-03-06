@@ -83,7 +83,7 @@ function getWelcomeMessage() {
     "1️⃣  Currency Counting Machines\n",
     "2️⃣  Fake Note Detection Equipment\n",
     "3️⃣  Billing Machines & Software\n",
-    "4️⃣  Gold Purity Testing Machines",
+    "4️⃣  Gold Purity Testing Machines\n",
     "5️⃣  Safes & Lockers",
     "6️⃣  Service / Repair Request",
     "7️⃣  Contact Us",
@@ -93,7 +93,6 @@ function getWelcomeMessage() {
 function getContactMessage() {
   return [
     "*IDEAL AUTOMATION*",
-    "━━━━━━━━━━━━━━━━━━━━",
     "📍 Ahilyanagar (Ahmednagar), Maharashtra",
     "📞 7020637398",
     "",
