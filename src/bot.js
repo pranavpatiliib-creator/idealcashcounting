@@ -7,10 +7,10 @@
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-const SESSION_TTL_MS               = 45 * 60 * 1000;
-const MAX_INCOMING_TEXT_LENGTH     = Number(process.env.MAX_INCOMING_TEXT_LENGTH || 1000);
-const MAX_FIELD_LENGTH_DEFAULT     = 240;
-const DUPLICATE_MESSAGE_WINDOW_MS  = Number(process.env.DUPLICATE_MESSAGE_WINDOW_MS || 5000);
+const SESSION_TTL_MS              = 45 * 60 * 1000;
+const MAX_INCOMING_TEXT_LENGTH    = Number(process.env.MAX_INCOMING_TEXT_LENGTH || 1000);
+const MAX_FIELD_LENGTH_DEFAULT    = 240;
+const DUPLICATE_MESSAGE_WINDOW_MS = Number(process.env.DUPLICATE_MESSAGE_WINDOW_MS || 5000);
 
 // ─── Static Content ───────────────────────────────────────────────────────────
 
@@ -18,27 +18,24 @@ const CLOSING_MESSAGE =
   "Thank you for reaching out to IDEAL AUTOMATION. We look forward to being of service.";
 
 const MENU_ROWS = [
-  { id: "menu_1", title: "1) Currency Counting",  description: "Currency counting machines"        },
-  { id: "menu_2", title: "2) Fake Note Detection", description: "Fake note detection equipment"    },
-  { id: "menu_3", title: "3) Billing Machines",    description: "Billing machines & software"      },
-  { id: "menu_4", title: "4) Gold Testing",        description: "Gold purity testing machines"     },
-  { id: "menu_5", title: "5) Safes & Lockers",     description: "Secure storage solutions"         },
-  { id: "menu_6", title: "6) Service / Repair",    description: "Raise a service request"          },
-  { id: "menu_7", title: "7) Contact Us",           description: "Phone and location details"      },
+  { id: "menu_1", title: "1) Currency Counting",   description: "Currency counting machines"     },
+  { id: "menu_2", title: "2) Fake Note Detection", description: "Fake note detection equipment"  },
+  { id: "menu_3", title: "3) Billing Machines",    description: "Billing machines & software"    },
+  { id: "menu_4", title: "4) Gold Testing",        description: "Gold purity testing machines"   },
+  { id: "menu_5", title: "5) Safes & Lockers",     description: "Secure storage solutions"       },
+  { id: "menu_6", title: "6) Service / Repair",    description: "Raise a service request"        },
+  { id: "menu_7", title: "7) Contact Us",          description: "Phone and location details"     },
 ];
 
 const SERVICE_FIELDS = [
-  { key: "name",             prompt: "Kindly provide your full name.",                       maxLength: 80  },
-  { key: "city",             prompt: "Kindly provide your city or location.",                maxLength: 120 },
+  { key: "name",             prompt: "Kindly provide your full name.",                        maxLength: 80  },
+  { key: "city",             prompt: "Kindly provide your city or location.",                 maxLength: 120 },
   { key: "machineType",      prompt: "Please specify the type of machine requiring service.", maxLength: 120 },
-  { key: "issueDescription", prompt: "Please describe the issue in brief.",                  maxLength: 320 },
+  { key: "issueDescription", prompt: "Please describe the issue in brief.",                   maxLength: 320 },
 ];
 
 // ─── Utility Functions ────────────────────────────────────────────────────────
 
-/**
- * Strips control characters and collapses whitespace.
- */
 function sanitizeUserText(input) {
   return String(input || "")
     .replace(/[\u0000-\u001f\u007f]/g, " ")
@@ -46,52 +43,44 @@ function sanitizeUserText(input) {
     .trim();
 }
 
-/**
- * Returns a lowercase, sanitized version of the input for matching.
- */
 function normalizeText(input) {
   return sanitizeUserText(input).toLowerCase();
 }
 
-/**
- * Returns true if any of the given substrings appear in `text`.
- */
 function containsAny(text, values) {
   return values.some((v) => text.includes(v));
 }
 
-/**
- * Escapes a string for use in a RegExp.
- */
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * Returns true if `value` appears as a whole word within `text`.
- */
 function matchesCommandWord(text, value) {
   const pattern = new RegExp(`(^|\\s)${escapeRegExp(value)}(\\s|$)`, "i");
   return pattern.test(text);
 }
 
-/**
- * Appends the standard closing line to a message.
- */
 function withClosing(message) {
   return `${message}\n\n${CLOSING_MESSAGE}`;
 }
 
 // ─── Message Builders ─────────────────────────────────────────────────────────
 
+/**
+ * Single source of truth for the welcome/menu message.
+ *
+ * Used on: first contact, greetings, resets, AND unrecognised input fallback.
+ * This ensures the user always sees the exact same message every single time —
+ * which was the root cause of the "different welcome message" bug.
+ */
 function getWelcomeMessage() {
   return [
     "Welcome to *IDEAL AUTOMATION* 👋",
     "",
     "We are your trusted partner for banking automation and cash-handling equipment.",
-    "Please select an option below so we may assist you promptly.",
+    "Please reply with a number (1–7) to continue.",
     "",
-    "1️⃣  Currency Counting Machines",
+    "1️⃣  Currency Counting Machines\n",
     "2️⃣  Fake Note Detection Equipment",
     "3️⃣  Billing Machines & Software",
     "4️⃣  Gold Purity Testing Machines",
@@ -112,6 +101,11 @@ function getContactMessage() {
   ].join("\n");
 }
 
+/**
+ * Interactive list widget — kept for platforms that support it,
+ * but NOT used in the fallback path to avoid a visually different
+ * "second welcome message" appearing after unrecognised input.
+ */
 function buildMainMenu() {
   return {
     kind:       "list",
@@ -124,9 +118,6 @@ function buildMainMenu() {
 
 // ─── Command Mapping ──────────────────────────────────────────────────────────
 
-/**
- * Maps normalized free-text input to an internal menu command ID.
- */
 function mapTextToCommand(text) {
   if (!text) return "";
 
@@ -138,31 +129,25 @@ function mapTextToCommand(text) {
   if (text === "6") return "menu_6";
   if (text === "7") return "menu_7";
 
-  if (containsAny(text, ["currency counting", "currency machine"]))        return "menu_1";
-  if (containsAny(text, ["fake note", "counterfeit"]))                     return "menu_2";
+  if (containsAny(text, ["currency counting", "currency machine"]))          return "menu_1";
+  if (containsAny(text, ["fake note", "counterfeit"]))                       return "menu_2";
   if (containsAny(text, ["billing machine", "billing software", "billing"])) return "menu_3";
-  if (containsAny(text, ["gold testing", "gold machine"]))                 return "menu_4";
-  if (containsAny(text, ["safe", "locker"]))                               return "menu_5";
+  if (containsAny(text, ["gold testing", "gold machine"]))                   return "menu_4";
+  if (containsAny(text, ["safe", "locker"]))                                 return "menu_5";
   if (containsAny(text, ["service", "repair", "maintenance", "issue",
-                          "problem", "not working", "breakdown"]))         return "menu_6";
-  if (containsAny(text, ["contact", "call", "phone", "number"]))           return "menu_7";
-  if (containsAny(text, ["menu", "home", "start", "restart", "reset"]))   return "menu_home";
+                          "problem", "not working", "breakdown"]))           return "menu_6";
+  if (containsAny(text, ["contact", "call", "phone", "number"]))             return "menu_7";
+  if (containsAny(text, ["menu", "home", "start", "restart", "reset"]))     return "menu_home";
 
   return "";
 }
 
-/**
- * Returns true for greeting-style inputs.
- */
 function isGreetingLike(normalizedText) {
   return ["hi", "hello", "hey", "namaste"].some(
     (v) => matchesCommandWord(normalizedText, v)
   );
 }
 
-/**
- * Returns true for menu/navigation-style inputs.
- */
 function isMenuLike(normalizedText) {
   return ["menu", "home", "restart", "reset", "start"].some(
     (v) => matchesCommandWord(normalizedText, v)
@@ -171,11 +156,6 @@ function isMenuLike(normalizedText) {
 
 // ─── Bot Factory ──────────────────────────────────────────────────────────────
 
-/**
- * Creates and returns a stateful bot instance.
- *
- * @param {{ saveLead: Function }} options
- */
 function createBot({ saveLead }) {
   if (typeof saveLead !== "function") {
     throw new Error("createBot requires a `saveLead` function.");
@@ -207,7 +187,6 @@ function createBot({ saveLead }) {
       return session;
     }
 
-    // Expire stale sessions
     if (Date.now() - existing.updatedAt > SESSION_TTL_MS) {
       const session = newSession(phone);
       sessions.set(userId, session);
@@ -227,6 +206,11 @@ function createBot({ saveLead }) {
 
   // ── Flow Handlers ────────────────────────────────────────────────────────
 
+  /**
+   * Shows the welcome message and resets the session state to idle.
+   * Called on first contact, greetings, navigation resets, AND unrecognised
+   * input — guaranteeing a consistent experience across all scenarios.
+   */
   function showWelcome(session) {
     session.hasSeenWelcome    = true;
     session.mode              = "idle";
@@ -245,7 +229,7 @@ function createBot({ saveLead }) {
         kind: "text",
         text: [
           "We will be happy to arrange a service visit for you.",
-          "Kindly answer a few brief questions.",
+          "Kindly answer a few brief questions to proceed.",
           "",
           SERVICE_FIELDS[0].prompt,
         ].join("\n"),
@@ -253,11 +237,6 @@ function createBot({ saveLead }) {
     ];
   }
 
-  /**
-   * Stores the user's response for the current service field and advances
-   * to the next field. Returns the next prompt string, or an empty string
-   * when all fields have been collected.
-   */
   function submitServiceField(session, value) {
     const currentField = SERVICE_FIELDS[session.serviceFieldIndex];
     if (!currentField) return "";
@@ -308,9 +287,6 @@ function createBot({ saveLead }) {
     ];
   }
 
-  /**
-   * Returns the response messages for a given menu command.
-   */
   function getMenuResponse(commandId, session) {
     switch (commandId) {
       case "menu_1":
@@ -325,7 +301,7 @@ function createBot({ saveLead }) {
                 "• Suitable for banks, retail counters, and cash-intensive businesses",
                 "• Significantly reduces manual counting errors",
                 "",
-                "Would you like pricing details or to schedule a demonstration?",
+                "Reply *menu* at any time to return to the main menu.",
               ].join("\n")
             ),
           },
@@ -342,6 +318,8 @@ function createBot({ saveLead }) {
                 "• Rapid and reliable identification of counterfeit currency",
                 "• Enhances cash-handling security at billing and cashier counters",
                 "• Simple to operate with minimal training required",
+                "",
+                "Reply *menu* at any time to return to the main menu.",
               ].join("\n")
             ),
           },
@@ -358,6 +336,8 @@ function createBot({ saveLead }) {
                 "• Designed for retail shops and growing businesses",
                 "• Enables faster, error-free billing operations",
                 "• Supports daily sales tracking and invoice management",
+                "",
+                "Reply *menu* at any time to return to the main menu.",
               ].join("\n")
             ),
           },
@@ -374,6 +354,8 @@ function createBot({ saveLead }) {
                 "• Widely used by jewellery shops for accurate purity verification",
                 "• Delivers quick and dependable test results",
                 "• Helps build customer trust and transparency",
+                "",
+                "Reply *menu* at any time to return to the main menu.",
               ].join("\n")
             ),
           },
@@ -390,6 +372,8 @@ function createBot({ saveLead }) {
                 "• Robust storage solutions for cash and important documents",
                 "• Suitable for shops, offices, and commercial establishments",
                 "• Engineered to meet everyday security requirements",
+                "",
+                "Reply *menu* at any time to return to the main menu.",
               ].join("\n")
             ),
           },
@@ -424,7 +408,7 @@ function createBot({ saveLead }) {
       ];
     }
 
-    // Guard: duplicate message within the dedup window
+    // Guard: deduplicate rapid repeat messages
     const messageSignature = `${safeInteractive}|${normalized}`;
     const now = Date.now();
     if (
@@ -437,12 +421,12 @@ function createBot({ saveLead }) {
     session.lastMessageSignature = messageSignature;
     session.lastMessageAt        = now;
 
-    // First-time visitor
+    // ── First-time visitor ───────────────────────────────────────────────
     if (!session.hasSeenWelcome) {
       return showWelcome(session);
     }
 
-    // Greetings and navigation resets
+    // ── Greetings & navigation resets ────────────────────────────────────
     if (isGreetingLike(normalized) || isMenuLike(normalized)) {
       return showWelcome(session);
     }
@@ -452,7 +436,7 @@ function createBot({ saveLead }) {
     // ── Service collection flow ──────────────────────────────────────────
     if (session.mode === "service_collect") {
 
-      // Allow user to navigate away mid-flow
+      // Allow user to navigate away mid-flow via a menu command
       if (commandId && (commandId.startsWith("menu_") || commandId === "menu_home")) {
         session.mode              = "idle";
         session.serviceFieldIndex = 0;
@@ -481,14 +465,11 @@ function createBot({ saveLead }) {
       if (response.length > 0) return response;
     }
 
-    // Fallback
-    return [
-      {
-        kind: "text",
-        text: "We could not understand your request. Please choose one of the options below so we may assist you.",
-      },
-      buildMainMenu(),
-    ];
+    // ── Fallback ─────────────────────────────────────────────────────────
+    // Return the same welcome text (not a separate list widget) so the
+    // user always sees one consistent message — fixing the "looks different"
+    // issue that occurred when an unrecognised input was sent after welcome.
+    return [{ kind: "text", text: getWelcomeMessage() }];
   }
 
   // ── Public API ───────────────────────────────────────────────────────────
