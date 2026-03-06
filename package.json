@@ -1,0 +1,26 @@
+{
+  "name": "idealautomation-whatsapp-bot",
+  "version": "1.0.0",
+  "description": "WhatsApp Business API chatbot for IDEAL AUTOMATION",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "whatsapp",
+    "chatbot",
+    "whatsapp-business-api",
+    "meta-cloud-api",
+    "ideal-automation"
+  ],
+  "author": "IDEAL AUTOMATION",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0",
+    "nedb-promises": "^6.2.3"
+  }
+}
