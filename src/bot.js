@@ -80,7 +80,7 @@ const PRODUCT_CATEGORIES = [
 ];
 
 const QUOTE_FIELDS = [
-  { key: "name", prompt: "Please share your Name." },
+  { key: "name", prompt: "Please share your Name.", maxLength: 80 },
   {
     key: "phone",
     prompt: "Please share your Phone Number.",
@@ -88,9 +88,14 @@ const QUOTE_FIELDS = [
       isValidPhone(value)
         ? ""
         : "Please share a valid Phone Number (10-15 digits, include country code if possible).",
-    normalizer: cleanPhone
+    normalizer: cleanPhone,
+    maxLength: 20
   },
-  { key: "productInterestedIn", prompt: "Please share Product Interested In." },
+  {
+    key: "productInterestedIn",
+    prompt: "Please share Product Interested In.",
+    maxLength: 140
+  },
   {
     key: "quantity",
     prompt: "Please share required Quantity.",
@@ -98,13 +103,14 @@ const QUOTE_FIELDS = [
       Number.isInteger(Number(value)) && Number(value) > 0
         ? ""
         : "Please share a valid Quantity (example: 1, 2, 10).",
-    normalizer: (value) => String(Math.trunc(Number(value)))
+    normalizer: (value) => String(Math.trunc(Number(value))),
+    maxLength: 6
   },
-  { key: "location", prompt: "Please share your Location." }
+  { key: "location", prompt: "Please share your Location.", maxLength: 140 }
 ];
 
 const SERVICE_FIELDS = [
-  { key: "name", prompt: "Please share your Name." },
+  { key: "name", prompt: "Please share your Name.", maxLength: 80 },
   {
     key: "phone",
     prompt: "Please share your Phone Number.",
@@ -112,16 +118,17 @@ const SERVICE_FIELDS = [
       isValidPhone(value)
         ? ""
         : "Please share a valid Phone Number (10-15 digits, include country code if possible).",
-    normalizer: cleanPhone
+    normalizer: cleanPhone,
+    maxLength: 20
   },
-  { key: "businessName", prompt: "Please share your Business Name." },
-  { key: "deviceType", prompt: "Please share Device Type/Model." },
-  { key: "problemDescription", prompt: "Please describe the Problem." },
-  { key: "location", prompt: "Please share your Location." }
+  { key: "businessName", prompt: "Please share your Business Name.", maxLength: 140 },
+  { key: "deviceType", prompt: "Please share Device Type/Model.", maxLength: 120 },
+  { key: "problemDescription", prompt: "Please describe the Problem.", maxLength: 320 },
+  { key: "location", prompt: "Please share your Location.", maxLength: 140 }
 ];
 
 const SALES_FIELDS = [
-  { key: "name", prompt: "Please share your Name." },
+  { key: "name", prompt: "Please share your Name.", maxLength: 80 },
   {
     key: "phone",
     prompt: "Please share your Phone Number.",
@@ -129,11 +136,12 @@ const SALES_FIELDS = [
       isValidPhone(value)
         ? ""
         : "Please share a valid Phone Number (10-15 digits, include country code if possible).",
-    normalizer: cleanPhone
+    normalizer: cleanPhone,
+    maxLength: 20
   },
-  { key: "businessName", prompt: "Please share your Business Name." },
-  { key: "requirement", prompt: "Please share your requirement briefly." },
-  { key: "location", prompt: "Please share your Location." }
+  { key: "businessName", prompt: "Please share your Business Name.", maxLength: 140 },
+  { key: "requirement", prompt: "Please share your requirement briefly.", maxLength: 240 },
+  { key: "location", prompt: "Please share your Location.", maxLength: 140 }
 ];
 
 const FLOW_FIELDS = {
@@ -142,8 +150,17 @@ const FLOW_FIELDS = {
   sales: SALES_FIELDS
 };
 
+const MAX_INCOMING_TEXT_LENGTH = Number(process.env.MAX_INCOMING_TEXT_LENGTH || 1000);
+
+function sanitizeUserText(input) {
+  return String(input || "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeText(input) {
-  return String(input || "").trim().toLowerCase();
+  return sanitizeUserText(input).toLowerCase();
 }
 
 function containsAny(text, values) {
@@ -156,6 +173,11 @@ function escapeRegExp(value) {
 
 function matchesCommandWord(text, value) {
   const pattern = new RegExp(`(^|\\s)${escapeRegExp(value)}(\\s|$)`, "i");
+  return pattern.test(text);
+}
+
+function hasStandaloneDigit(text, digit) {
+  const pattern = new RegExp(`(^|\\D)${escapeRegExp(String(digit))}(\\D|$)`);
   return pattern.test(text);
 }
 
@@ -320,6 +342,36 @@ function mapTextToCommand(text) {
   return "";
 }
 
+function mapTextToCategoryAction(text, selectedCategory) {
+  if (!selectedCategory) return "";
+
+  if (
+    matchesCommandWord(text, "view") ||
+    matchesCommandWord(text, "details") ||
+    matchesCommandWord(text, "detail") ||
+    hasStandaloneDigit(text, 1)
+  ) {
+    return `act_view_${selectedCategory}`;
+  }
+  if (
+    matchesCommandWord(text, "price") ||
+    matchesCommandWord(text, "quote") ||
+    matchesCommandWord(text, "quotation") ||
+    hasStandaloneDigit(text, 2)
+  ) {
+    return `act_quote_${selectedCategory}`;
+  }
+  if (
+    matchesCommandWord(text, "sales") ||
+    matchesCommandWord(text, "talk") ||
+    matchesCommandWord(text, "contact") ||
+    hasStandaloneDigit(text, 3)
+  ) {
+    return `act_sales_${selectedCategory}`;
+  }
+  return "";
+}
+
 function createBot({ saveLead }) {
   if (typeof saveLead !== "function") {
     throw new Error("createBot requires a saveLead function");
@@ -334,7 +386,8 @@ function createBot({ saveLead }) {
       flowType: "",
       fieldIndex: 0,
       data: {},
-      phoneHint: cleanPhone(phone || "")
+      phoneHint: cleanPhone(phone || ""),
+      selectedCategory: ""
     };
   }
 
@@ -368,6 +421,7 @@ function createBot({ saveLead }) {
     session.flowType = flowType;
     session.fieldIndex = 0;
     session.data = { ...seedData };
+    session.selectedCategory = "";
   }
 
   function getCurrentField(session) {
@@ -400,9 +454,14 @@ function createBot({ saveLead }) {
     const field = getCurrentField(session);
     if (!field) return "";
 
-    const value = String(rawInput || "").trim();
+    const value = sanitizeUserText(rawInput);
     if (!value) {
       return field.prompt;
+    }
+
+    const maxLength = Number(field.maxLength || 320);
+    if (value.length > maxLength) {
+      return `Please keep your response within ${maxLength} characters.`;
     }
 
     if (typeof field.validator === "function") {
@@ -419,7 +478,7 @@ function createBot({ saveLead }) {
     return getNextPrompt(session);
   }
 
-  async function completeFlow(userId, phone, session) {
+  async function completeFlow(userId, phone, session, channel) {
     const completedFlowType = session.flowType;
     const leadTypeMap = {
       quote: "quotation",
@@ -428,7 +487,7 @@ function createBot({ saveLead }) {
     };
 
     const lead = {
-      source: "whatsapp_business_api",
+      source: channel === "twilio" ? "twilio_whatsapp" : "whatsapp_business_api",
       leadType: leadTypeMap[session.flowType] || session.flowType,
       userId,
       phone,
@@ -450,6 +509,7 @@ function createBot({ saveLead }) {
     session.flowType = "";
     session.fieldIndex = 0;
     session.data = {};
+    session.selectedCategory = "";
 
     return [
       {
@@ -461,6 +521,8 @@ function createBot({ saveLead }) {
   }
 
   async function routeMenu(session, commandId) {
+    session.selectedCategory = "";
+
     if (commandId === "menu_product_info") {
       return [buildCategoryMenu()];
     }
@@ -550,11 +612,22 @@ function createBot({ saveLead }) {
     ];
   }
 
-  async function handleIncoming({ userId, phone, text, interactiveId }) {
-    const normalized = normalizeText(text);
+  async function handleIncoming({ userId, phone, text, interactiveId, channel = "meta" }) {
+    const sanitizedText = sanitizeUserText(text);
+    const normalized = normalizeText(sanitizedText);
+    const safeInteractiveId = sanitizeUserText(interactiveId).slice(0, 160);
     const session = getSession(userId, phone);
 
-    if (!normalized && !interactiveId) {
+    if (sanitizedText.length > MAX_INCOMING_TEXT_LENGTH) {
+      return [
+        {
+          kind: "text",
+          text: `Please keep your message under ${MAX_INCOMING_TEXT_LENGTH} characters.`
+        }
+      ];
+    }
+
+    if (!normalized && !safeInteractiveId) {
       resetSession(userId, phone);
       return [{ kind: "text", text: getWelcomeMessage() }, buildMainMenu()];
     }
@@ -564,28 +637,32 @@ function createBot({ saveLead }) {
       return [{ kind: "text", text: getWelcomeMessage() }, buildMainMenu()];
     }
 
-    const commandId = interactiveId || mapTextToCommand(normalized);
+    const commandId =
+      safeInteractiveId ||
+      mapTextToCommand(normalized) ||
+      mapTextToCategoryAction(normalized, session.selectedCategory);
 
     if (session.mode === "collecting") {
       const isExplicitMenuJump =
-        (interactiveId && commandId && commandId.startsWith("menu_")) || isMenuRequest(normalized);
+        (safeInteractiveId && commandId && commandId.startsWith("menu_")) || isMenuRequest(normalized);
 
       if (isExplicitMenuJump) {
         session.mode = "idle";
         session.flowType = "";
         session.fieldIndex = 0;
         session.data = {};
+        session.selectedCategory = "";
         if (commandId && commandId.startsWith("menu_")) {
           return routeMenu(session, commandId);
         }
         return [{ kind: "text", text: getWelcomeMessage() }, buildMainMenu()];
       }
 
-      const prompt = submitField(session, text);
+      const prompt = submitField(session, sanitizedText);
       if (prompt) {
         return [{ kind: "text", text: prompt }];
       }
-      return completeFlow(userId, phone, session);
+      return completeFlow(userId, phone, session, channel);
     }
 
     if (commandId === "menu_home") {
@@ -625,7 +702,8 @@ function createBot({ saveLead }) {
       isValidPhone,
       cleanPhone,
       buildMainMenu,
-      buildCategoryMenu
+      buildCategoryMenu,
+      mapTextToCategoryAction
     }
   };
 }

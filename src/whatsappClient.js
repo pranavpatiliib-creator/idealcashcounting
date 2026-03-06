@@ -1,3 +1,5 @@
+const REQUEST_TIMEOUT_MS = Number(process.env.WHATSAPP_API_TIMEOUT_MS || 10000);
+
 function getRequiredEnv(name) {
   const value = process.env[name];
   if (!value) {
@@ -12,9 +14,43 @@ function getGraphApiEndpoint() {
   return `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
 }
 
+function normalizeRecipient(to) {
+  const cleaned = String(to || "").replace(/[^\d+]/g, "");
+  if (!/^\+?\d{6,20}$/.test(cleaned)) {
+    throw new Error("Invalid recipient format");
+  }
+  return cleaned.replace(/^\+/, "");
+}
+
+function clampText(text, maxLength) {
+  const normalized = String(text || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim();
+  return normalized.slice(0, maxLength);
+}
+
+function normalizeSections(sections) {
+  const normalizedSections = [];
+  const sourceSections = Array.isArray(sections) ? sections : [];
+
+  for (const section of sourceSections.slice(0, 10)) {
+    const rows = Array.isArray(section?.rows) ? section.rows : [];
+    normalizedSections.push({
+      title: clampText(section?.title || "Options", 24),
+      rows: rows.slice(0, 10).map((row) => ({
+        id: clampText(row?.id || "", 200),
+        title: clampText(row?.title || "Option", 24),
+        description: clampText(row?.description || "", 72)
+      }))
+    });
+  }
+
+  return normalizedSections;
+}
+
 async function sendGraphPayload(payload) {
   const token = getRequiredEnv("WHATSAPP_TOKEN");
   const endpoint = getGraphApiEndpoint();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -22,8 +58,9 @@ async function sendGraphPayload(payload) {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify(payload)
-  });
+    body: JSON.stringify(payload),
+    signal: controller.signal
+  }).finally(() => clearTimeout(timeout));
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -34,10 +71,10 @@ async function sendGraphPayload(payload) {
 function asTextPayload(to, text) {
   return {
     messaging_product: "whatsapp",
-    to,
+    to: normalizeRecipient(to),
     type: "text",
     text: {
-      body: text
+      body: clampText(text, 1024)
     }
   };
 }
@@ -45,17 +82,17 @@ function asTextPayload(to, text) {
 function asListPayload(to, message) {
   return {
     messaging_product: "whatsapp",
-    to,
+    to: normalizeRecipient(to),
     type: "interactive",
     interactive: {
       type: "list",
       body: {
-        text: message.body
+        text: clampText(message.body, 1024)
       },
-      footer: message.footer ? { text: message.footer } : undefined,
+      footer: message.footer ? { text: clampText(message.footer, 60) } : undefined,
       action: {
-        button: message.buttonText || "Choose",
-        sections: message.sections
+        button: clampText(message.buttonText || "Choose", 20),
+        sections: normalizeSections(message.sections)
       }
     }
   };
@@ -64,19 +101,19 @@ function asListPayload(to, message) {
 function asButtonsPayload(to, message) {
   return {
     messaging_product: "whatsapp",
-    to,
+    to: normalizeRecipient(to),
     type: "interactive",
     interactive: {
       type: "button",
       body: {
-        text: message.body
+        text: clampText(message.body, 1024)
       },
       action: {
         buttons: message.buttons.map((item) => ({
           type: "reply",
           reply: {
             id: item.id,
-            title: item.title
+            title: clampText(item.title, 20)
           }
         }))
       }

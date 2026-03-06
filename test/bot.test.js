@@ -104,3 +104,62 @@ test("service flow captures repair details", async () => {
   assert.match(done[0].text, /repair\/service request is submitted/i);
   assert.equal(savedLeads[0].leadType, "service_request");
 });
+
+test("twilio text action works for category and lead source is twilio", async () => {
+  const savedLeads = [];
+  const bot = createTestBot(savedLeads);
+  const userId = "u4";
+  const phone = "919666666666";
+
+  const p1 = await bot.handleIncoming({
+    userId,
+    phone,
+    interactiveId: "menu_product_info",
+    text: "",
+    channel: "twilio"
+  });
+  assert.equal(p1[0].kind, "list");
+
+  const p2 = await bot.handleIncoming({
+    userId,
+    phone,
+    text: "currency counting",
+    channel: "twilio"
+  });
+  assert.equal(p2[1].kind, "buttons");
+
+  const p3 = await bot.handleIncoming({
+    userId,
+    phone,
+    text: "request price",
+    channel: "twilio"
+  });
+  assert.match(p3[0].text, /Pricing depends on model and quantity/i);
+
+  await bot.handleIncoming({ userId, phone, text: "Rakesh", channel: "twilio" });
+  await bot.handleIncoming({
+    userId,
+    phone,
+    text: "Currency Counting Machines",
+    channel: "twilio"
+  });
+  await bot.handleIncoming({ userId, phone, text: "1", channel: "twilio" });
+  await bot.handleIncoming({ userId, phone, text: "Ahilyanagar", channel: "twilio" });
+
+  assert.equal(savedLeads.length, 1);
+  assert.equal(savedLeads[0].source, "twilio_whatsapp");
+});
+
+test("rejects oversized incoming messages", async () => {
+  const savedLeads = [];
+  const bot = createTestBot(savedLeads);
+  const veryLongText = "A".repeat(1200);
+
+  const response = await bot.handleIncoming({
+    userId: "u5",
+    phone: "919555555555",
+    text: veryLongText
+  });
+
+  assert.match(response[0].text, /Please keep your message under/i);
+});
