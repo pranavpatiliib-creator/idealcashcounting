@@ -11,143 +11,86 @@ function createTestBot(savedLeads) {
   });
 }
 
-test("returns welcome and menu list", async () => {
+test("first message returns welcome and 7-option menu", async () => {
   const savedLeads = [];
   const bot = createTestBot(savedLeads);
 
   const response = await bot.handleIncoming({
     userId: "u1",
     phone: "919999999999",
-    text: "hi"
+    text: "hello"
   });
 
   assert.equal(response.length, 2);
   assert.equal(response[0].kind, "text");
-  assert.match(response[0].text, /IDEAL AUTOMATION/i);
+  assert.match(response[0].text, /Welcome to IDEAL AUTOMATION/i);
   assert.equal(response[1].kind, "list");
-  assert.equal(response[1].sections[0].rows.length, 5);
+  assert.equal(response[1].sections[0].rows.length, 7);
 });
 
-test("quote flow captures required details and stores lead", async () => {
+test("option 1 returns currency machine info with price/demo question", async () => {
   const savedLeads = [];
   const bot = createTestBot(savedLeads);
+  const userId = "u2";
+  const phone = "919888888888";
 
-  const start = await bot.handleIncoming({
-    userId: "u2",
-    phone: "919888888888",
-    interactiveId: "menu_quote",
-    text: ""
-  });
-  assert.match(start[0].text, /Pricing depends on model and quantity/i);
-  assert.match(start[1].text, /Please share your Name/i);
+  await bot.handleIncoming({ userId, phone, text: "hi" });
+  const response = await bot.handleIncoming({ userId, phone, text: "1" });
 
-  const nameStep = await bot.handleIncoming({
-    userId: "u2",
-    phone: "919888888888",
-    text: "Pranav Patil"
-  });
-  assert.match(nameStep[0].text, /Product Interested In/i);
-
-  const productStep = await bot.handleIncoming({
-    userId: "u2",
-    phone: "919888888888",
-    text: "Currency Counting Machine"
-  });
-  assert.match(productStep[0].text, /Quantity/i);
-
-  const quantityStep = await bot.handleIncoming({
-    userId: "u2",
-    phone: "919888888888",
-    text: "2"
-  });
-  assert.match(quantityStep[0].text, /Location/i);
-
-  const completed = await bot.handleIncoming({
-    userId: "u2",
-    phone: "919888888888",
-    text: "Ahilyanagar"
-  });
-  assert.equal(completed[0].kind, "text");
-  assert.match(completed[0].text, /quotation request is submitted/i);
-  assert.equal(savedLeads.length, 1);
-  assert.equal(savedLeads[0].leadType, "quotation");
-  assert.equal(savedLeads[0].quantity, "2");
+  assert.equal(response[0].kind, "text");
+  assert.match(response[0].text, /Currency Counting Machines/i);
+  assert.match(response[0].text, /price details or a demo/i);
+  assert.match(response[0].text, /Thank you for contacting IDEAL AUTOMATION/i);
 });
 
-test("service flow captures repair details", async () => {
+test("option 6 collects service request fields and stores lead", async () => {
   const savedLeads = [];
   const bot = createTestBot(savedLeads);
   const userId = "u3";
   const phone = "919777777777";
 
-  const start = await bot.handleIncoming({
+  await bot.handleIncoming({ userId, phone, text: "hi" });
+  const start = await bot.handleIncoming({ userId, phone, text: "6", channel: "twilio" });
+  assert.match(start[0].text, /Please share your Name/i);
+
+  const s1 = await bot.handleIncoming({ userId, phone, text: "Ravi", channel: "twilio" });
+  assert.match(s1[0].text, /Please share your City/i);
+
+  const s2 = await bot.handleIncoming({ userId, phone, text: "Ahmednagar", channel: "twilio" });
+  assert.match(s2[0].text, /Machine Type/i);
+
+  const s3 = await bot.handleIncoming({ userId, phone, text: "Currency Counter", channel: "twilio" });
+  assert.match(s3[0].text, /describe the issue/i);
+
+  const done = await bot.handleIncoming({
     userId,
     phone,
-    interactiveId: "menu_service",
-    text: ""
+    text: "Machine is not counting notes properly",
+    channel: "twilio"
   });
-  assert.match(start[0].text, /repair\/service/i);
+  assert.match(done[0].text, /Our service team will contact you shortly/i);
+  assert.match(done[0].text, /Thank you for contacting IDEAL AUTOMATION/i);
 
-  const s1 = await bot.handleIncoming({ userId, phone, text: "Ravi" });
-  assert.match(s1[0].text, /Business Name/i);
-
-  const s2 = await bot.handleIncoming({ userId, phone, text: "ABC Retail" });
-  assert.match(s2[0].text, /Device Type/i);
-
-  const s3 = await bot.handleIncoming({ userId, phone, text: "CC-100" });
-  assert.match(s3[0].text, /Problem/i);
-
-  const s4 = await bot.handleIncoming({ userId, phone, text: "Machine not counting notes" });
-  assert.match(s4[0].text, /Location/i);
-
-  const done = await bot.handleIncoming({ userId, phone, text: "Ahmednagar" });
-  assert.match(done[0].text, /repair\/service request is submitted/i);
+  assert.equal(savedLeads.length, 1);
   assert.equal(savedLeads[0].leadType, "service_request");
+  assert.equal(savedLeads[0].source, "twilio_whatsapp");
+  assert.equal(savedLeads[0].name, "Ravi");
+  assert.equal(savedLeads[0].location, "Ahmednagar");
+  assert.equal(savedLeads[0].deviceType, "Currency Counter");
 });
 
-test("twilio text action works for category and lead source is twilio", async () => {
+test("option 7 returns contact details with closing message", async () => {
   const savedLeads = [];
   const bot = createTestBot(savedLeads);
   const userId = "u4";
   const phone = "919666666666";
 
-  const p1 = await bot.handleIncoming({
-    userId,
-    phone,
-    interactiveId: "menu_product_info",
-    text: "",
-    channel: "twilio"
-  });
-  assert.equal(p1[0].kind, "list");
+  await bot.handleIncoming({ userId, phone, text: "hi" });
+  const response = await bot.handleIncoming({ userId, phone, text: "7" });
 
-  const p2 = await bot.handleIncoming({
-    userId,
-    phone,
-    text: "currency counting",
-    channel: "twilio"
-  });
-  assert.equal(p2[1].kind, "buttons");
-
-  const p3 = await bot.handleIncoming({
-    userId,
-    phone,
-    text: "request price",
-    channel: "twilio"
-  });
-  assert.match(p3[0].text, /Pricing depends on model and quantity/i);
-
-  await bot.handleIncoming({ userId, phone, text: "Rakesh", channel: "twilio" });
-  await bot.handleIncoming({
-    userId,
-    phone,
-    text: "Currency Counting Machines",
-    channel: "twilio"
-  });
-  await bot.handleIncoming({ userId, phone, text: "1", channel: "twilio" });
-  await bot.handleIncoming({ userId, phone, text: "Ahilyanagar", channel: "twilio" });
-
-  assert.equal(savedLeads.length, 1);
-  assert.equal(savedLeads[0].source, "twilio_whatsapp");
+  assert.match(response[0].text, /Ahilyanagar \(Ahmednagar\)/i);
+  assert.match(response[0].text, /7020637398/i);
+  assert.match(response[0].text, /Thank you for contacting IDEAL AUTOMATION/i);
 });
 
 test("rejects oversized incoming messages", async () => {

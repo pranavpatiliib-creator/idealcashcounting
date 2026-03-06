@@ -1,156 +1,54 @@
 const SESSION_TTL_MS = 45 * 60 * 1000;
+const MAX_INCOMING_TEXT_LENGTH = Number(process.env.MAX_INCOMING_TEXT_LENGTH || 1000);
+const MAX_FIELD_LENGTH_DEFAULT = 240;
+
+const CLOSING_MESSAGE =
+  "Thank you for contacting IDEAL AUTOMATION. We look forward to serving you.";
 
 const MENU_ROWS = [
   {
-    id: "menu_product_info",
-    title: "1) Product Information",
-    description: "View product categories"
+    id: "menu_1",
+    title: "1) Currency Counting",
+    description: "Currency counting machines"
   },
   {
-    id: "menu_quote",
-    title: "2) Request Price/Quote",
-    description: "Get quotation support"
+    id: "menu_2",
+    title: "2) Fake Note Detect",
+    description: "Fake note detectors"
   },
   {
-    id: "menu_service",
-    title: "3) Repair/Service",
-    description: "Raise service request"
+    id: "menu_3",
+    title: "3) Billing Machines",
+    description: "Billing machines & software"
   },
   {
-    id: "menu_contact_sales",
-    title: "4) Contact Sales Team",
-    description: "Talk to sales quickly"
+    id: "menu_4",
+    title: "4) Gold Testing",
+    description: "Gold testing machines"
   },
   {
-    id: "menu_company_info",
-    title: "5) Company Information",
-    description: "About IDEAL AUTOMATION"
+    id: "menu_5",
+    title: "5) Safes & Lockers",
+    description: "Secure storage solutions"
+  },
+  {
+    id: "menu_6",
+    title: "6) Service / Repair",
+    description: "Raise a service request"
+  },
+  {
+    id: "menu_7",
+    title: "7) Contact Us",
+    description: "Phone and location details"
   }
-];
-
-const PRODUCT_CATEGORIES = [
-  {
-    id: "cat_currency_counting",
-    title: "Currency Counting Machines",
-    menuTitle: "Currency Counting",
-    shortDescription: "Fast and accurate counting for high cash volumes.",
-    details:
-      "Currency Counting Machines:\n- High speed counting\n- Batch/add modes\n- Suitable for banks, cash offices, and retail counters"
-  },
-  {
-    id: "cat_fake_note_detectors",
-    title: "Fake Note Detectors",
-    menuTitle: "Fake Note Detector",
-    shortDescription: "Quick counterfeit detection with UV/MG/IR checks.",
-    details:
-      "Fake Note Detectors:\n- Counterfeit detection support\n- Easy operation\n- Useful for retail, banks, and wholesale cash counters"
-  },
-  {
-    id: "cat_billing",
-    title: "Billing Machines & Software",
-    menuTitle: "Billing & Software",
-    shortDescription: "Billing setup for retail and wholesale operations.",
-    details:
-      "Billing Machines & Software:\n- Fast invoice generation\n- Inventory-friendly workflow\n- Designed for shops, wholesalers, and offices"
-  },
-  {
-    id: "cat_gold_testing",
-    title: "Gold Testing Machines",
-    menuTitle: "Gold Testing",
-    shortDescription: "Reliable purity testing support for jewelers.",
-    details:
-      "Gold Testing Machines:\n- Accurate purity test support\n- Suitable for jewelry showrooms\n- Helps improve customer confidence"
-  },
-  {
-    id: "cat_safes_lockers",
-    title: "Safes & Lockers",
-    menuTitle: "Safes & Lockers",
-    shortDescription: "Secure storage for cash, valuables, and documents.",
-    details:
-      "Safes & Lockers:\n- Security-focused storage\n- Multiple size options\n- Suitable for banks, offices, and business premises"
-  },
-  {
-    id: "cat_thermal_rolls",
-    title: "Thermal Paper Rolls",
-    menuTitle: "Thermal Rolls",
-    shortDescription: "Quality thermal rolls for billing/POS printers.",
-    details:
-      "Thermal Paper Rolls:\n- Clear print output\n- Billing and POS compatibility\n- Consistent quality for daily use"
-  }
-];
-
-const QUOTE_FIELDS = [
-  { key: "name", prompt: "Please share your Name.", maxLength: 80 },
-  {
-    key: "phone",
-    prompt: "Please share your Phone Number.",
-    validator: (value) =>
-      isValidPhone(value)
-        ? ""
-        : "Please share a valid Phone Number (10-15 digits, include country code if possible).",
-    normalizer: cleanPhone,
-    maxLength: 20
-  },
-  {
-    key: "productInterestedIn",
-    prompt: "Please share Product Interested In.",
-    maxLength: 140
-  },
-  {
-    key: "quantity",
-    prompt: "Please share required Quantity.",
-    validator: (value) =>
-      Number.isInteger(Number(value)) && Number(value) > 0
-        ? ""
-        : "Please share a valid Quantity (example: 1, 2, 10).",
-    normalizer: (value) => String(Math.trunc(Number(value))),
-    maxLength: 6
-  },
-  { key: "location", prompt: "Please share your Location.", maxLength: 140 }
 ];
 
 const SERVICE_FIELDS = [
   { key: "name", prompt: "Please share your Name.", maxLength: 80 },
-  {
-    key: "phone",
-    prompt: "Please share your Phone Number.",
-    validator: (value) =>
-      isValidPhone(value)
-        ? ""
-        : "Please share a valid Phone Number (10-15 digits, include country code if possible).",
-    normalizer: cleanPhone,
-    maxLength: 20
-  },
-  { key: "businessName", prompt: "Please share your Business Name.", maxLength: 140 },
-  { key: "deviceType", prompt: "Please share Device Type/Model.", maxLength: 120 },
-  { key: "problemDescription", prompt: "Please describe the Problem.", maxLength: 320 },
-  { key: "location", prompt: "Please share your Location.", maxLength: 140 }
+  { key: "city", prompt: "Please share your City.", maxLength: 120 },
+  { key: "machineType", prompt: "Please share Machine Type.", maxLength: 120 },
+  { key: "issueDescription", prompt: "Please describe the issue.", maxLength: 320 }
 ];
-
-const SALES_FIELDS = [
-  { key: "name", prompt: "Please share your Name.", maxLength: 80 },
-  {
-    key: "phone",
-    prompt: "Please share your Phone Number.",
-    validator: (value) =>
-      isValidPhone(value)
-        ? ""
-        : "Please share a valid Phone Number (10-15 digits, include country code if possible).",
-    normalizer: cleanPhone,
-    maxLength: 20
-  },
-  { key: "businessName", prompt: "Please share your Business Name.", maxLength: 140 },
-  { key: "requirement", prompt: "Please share your requirement briefly.", maxLength: 240 },
-  { key: "location", prompt: "Please share your Location.", maxLength: 140 }
-];
-
-const FLOW_FIELDS = {
-  quote: QUOTE_FIELDS,
-  service: SERVICE_FIELDS,
-  sales: SALES_FIELDS
-};
-
-const MAX_INCOMING_TEXT_LENGTH = Number(process.env.MAX_INCOMING_TEXT_LENGTH || 1000);
 
 function sanitizeUserText(input) {
   return String(input || "")
@@ -176,130 +74,61 @@ function matchesCommandWord(text, value) {
   return pattern.test(text);
 }
 
-function hasStandaloneDigit(text, digit) {
-  const pattern = new RegExp(`(^|\\D)${escapeRegExp(String(digit))}(\\D|$)`);
-  return pattern.test(text);
-}
-
-function cleanPhone(value) {
-  return String(value || "").replace(/[^\d+]/g, "");
-}
-
-function isValidPhone(value) {
-  const digits = String(value || "").replace(/\D/g, "");
-  return digits.length >= 10 && digits.length <= 15;
-}
-
-function isGreeting(text) {
-  return ["hi", "hello", "hey", "namaste", "start"].some((value) =>
-    matchesCommandWord(text, value)
-  );
-}
-
-function isMenuRequest(text) {
-  return ["menu", "restart", "reset", "home"].some((value) => matchesCommandWord(text, value));
-}
-
-function getCategoryById(categoryId) {
-  return PRODUCT_CATEGORIES.find((item) => item.id === categoryId) || null;
-}
-
 function buildMainMenu() {
   return {
     kind: "list",
     body: "How can we assist you today?",
     buttonText: "Select Option",
-    sections: [{ title: "Main Menu", rows: MENU_ROWS }],
+    sections: [{ title: "IDEAL AUTOMATION", rows: MENU_ROWS }],
     footer: "IDEAL AUTOMATION"
-  };
-}
-
-function buildCategoryMenu() {
-  return {
-    kind: "list",
-    body: "Please choose a product category:",
-    buttonText: "View Categories",
-    sections: [
-      {
-        title: "Products",
-        rows: PRODUCT_CATEGORIES.map((item) => ({
-          id: item.id,
-          title: item.menuTitle || item.title,
-          description: item.shortDescription
-        }))
-      }
-    ],
-    footer: "Product Information"
-  };
-}
-
-function buildCategoryActions(categoryId) {
-  return {
-    kind: "buttons",
-    body: "Choose an action:",
-    buttons: [
-      {
-        id: `act_view_${categoryId}`,
-        title: "View Details"
-      },
-      {
-        id: `act_quote_${categoryId}`,
-        title: "Request Price"
-      },
-      {
-        id: `act_sales_${categoryId}`,
-        title: "Talk To Sales"
-      }
-    ]
-  };
-}
-
-function buildPostCompletionButtons() {
-  return {
-    kind: "buttons",
-    body: "For faster assistance, connect with our sales team now.",
-    buttons: [
-      { id: "menu_contact_sales", title: "Contact Sales" },
-      { id: "menu_product_info", title: "Products" },
-      { id: "menu_home", title: "Main Menu" }
-    ]
   };
 }
 
 function getWelcomeMessage() {
   return [
-    "Hello!",
-    "Welcome to IDEAL AUTOMATION.",
-    "We provide Currency Counting Machines, Fake Note Detectors, Billing Machines & Software, Gold Testing Machines, Safes & Lockers, and Thermal Paper Rolls."
+    "Welcome to IDEAL AUTOMATION 👋",
+    "Your trusted partner for banking and automation equipment.",
+    "",
+    "How can we assist you today?",
+    "",
+    "1️⃣ Currency Counting Machines",
+    "2️⃣ Fake Note Detectors",
+    "3️⃣ Billing Machines & Software",
+    "4️⃣ Gold Testing Machines",
+    "5️⃣ Safes & Lockers",
+    "6️⃣ Service / Repair Request",
+    "7️⃣ Contact Us"
   ].join("\n");
 }
 
-function getCompanyInfoMessage() {
+function getContactMessage() {
   return [
-    "IDEAL AUTOMATION is a trusted sales and service provider in Ahilyanagar (Ahmednagar), Maharashtra.",
-    "We support banks, jewelers, retailers, wholesalers, offices, and ATM handlers with automation equipment and after-sales service."
+    "IDEAL AUTOMATION",
+    "📍 Ahilyanagar (Ahmednagar), Maharashtra",
+    "📞 7020637398"
   ].join("\n");
+}
+
+function withClosing(message) {
+  return `${message}\n\n${CLOSING_MESSAGE}`;
 }
 
 function mapTextToCommand(text) {
   if (!text) return "";
-  if (text === "1") return "menu_product_info";
-  if (text === "2") return "menu_quote";
-  if (text === "3") return "menu_service";
-  if (text === "4") return "menu_contact_sales";
-  if (text === "5") return "menu_company_info";
 
-  if (containsAny(text, ["currency counting"])) return "cat_currency_counting";
-  if (containsAny(text, ["fake note"])) return "cat_fake_note_detectors";
-  if (containsAny(text, ["billing"])) return "cat_billing";
-  if (containsAny(text, ["gold"])) return "cat_gold_testing";
-  if (containsAny(text, ["safe", "locker"])) return "cat_safes_lockers";
-  if (containsAny(text, ["thermal"])) return "cat_thermal_rolls";
+  if (text === "1") return "menu_1";
+  if (text === "2") return "menu_2";
+  if (text === "3") return "menu_3";
+  if (text === "4") return "menu_4";
+  if (text === "5") return "menu_5";
+  if (text === "6") return "menu_6";
+  if (text === "7") return "menu_7";
 
-  if (containsAny(text, ["price", "quote", "quotation", "cost", "rate"])) {
-    return "menu_quote";
-  }
-
+  if (containsAny(text, ["currency counting", "currency machine"])) return "menu_1";
+  if (containsAny(text, ["fake note", "counterfeit"])) return "menu_2";
+  if (containsAny(text, ["billing machine", "billing software", "billing"])) return "menu_3";
+  if (containsAny(text, ["gold testing", "gold machine"])) return "menu_4";
+  if (containsAny(text, ["safe", "locker"])) return "menu_5";
   if (
     containsAny(text, [
       "service",
@@ -311,64 +140,11 @@ function mapTextToCommand(text) {
       "breakdown"
     ])
   ) {
-    return "menu_service";
+    return "menu_6";
   }
+  if (containsAny(text, ["contact", "call", "phone", "number"])) return "menu_7";
 
-  if (containsAny(text, ["sales", "call"])) {
-    return "menu_contact_sales";
-  }
-
-  if (containsAny(text, ["about", "company", "location", "address"])) {
-    return "menu_company_info";
-  }
-
-  if (
-    containsAny(text, [
-      "product",
-      "currency",
-      "counter",
-      "machine",
-      "fake note",
-      "billing",
-      "gold",
-      "locker",
-      "safe",
-      "thermal"
-    ])
-  ) {
-    return "menu_product_info";
-  }
-
-  return "";
-}
-
-function mapTextToCategoryAction(text, selectedCategory) {
-  if (!selectedCategory) return "";
-
-  if (
-    matchesCommandWord(text, "view") ||
-    matchesCommandWord(text, "details") ||
-    matchesCommandWord(text, "detail") ||
-    hasStandaloneDigit(text, 1)
-  ) {
-    return `act_view_${selectedCategory}`;
-  }
-  if (
-    matchesCommandWord(text, "price") ||
-    matchesCommandWord(text, "quote") ||
-    matchesCommandWord(text, "quotation") ||
-    hasStandaloneDigit(text, 2)
-  ) {
-    return `act_quote_${selectedCategory}`;
-  }
-  if (
-    matchesCommandWord(text, "sales") ||
-    matchesCommandWord(text, "talk") ||
-    matchesCommandWord(text, "contact") ||
-    hasStandaloneDigit(text, 3)
-  ) {
-    return `act_sales_${selectedCategory}`;
-  }
+  if (containsAny(text, ["menu", "home", "start", "restart", "reset"])) return "menu_home";
   return "";
 }
 
@@ -382,12 +158,11 @@ function createBot({ saveLead }) {
   function newSession(phone) {
     return {
       updatedAt: Date.now(),
+      hasSeenWelcome: false,
       mode: "idle",
-      flowType: "",
-      fieldIndex: 0,
-      data: {},
-      phoneHint: cleanPhone(phone || ""),
-      selectedCategory: ""
+      serviceFieldIndex: 0,
+      serviceData: {},
+      phoneHint: sanitizeUserText(phone).slice(0, 20)
     };
   }
 
@@ -406,8 +181,8 @@ function createBot({ saveLead }) {
     }
 
     existing.updatedAt = Date.now();
-    if (!existing.phoneHint && isValidPhone(phone)) {
-      existing.phoneHint = cleanPhone(phone);
+    if (!existing.phoneHint) {
+      existing.phoneHint = sanitizeUserText(phone).slice(0, 20);
     }
     return existing;
   }
@@ -416,206 +191,168 @@ function createBot({ saveLead }) {
     sessions.set(userId, newSession(phone));
   }
 
-  function startFlow(session, flowType, seedData = {}) {
-    session.mode = "collecting";
-    session.flowType = flowType;
-    session.fieldIndex = 0;
-    session.data = { ...seedData };
-    session.selectedCategory = "";
+  function showWelcome(session) {
+    session.hasSeenWelcome = true;
+    session.mode = "idle";
+    session.serviceFieldIndex = 0;
+    session.serviceData = {};
+    return [{ kind: "text", text: getWelcomeMessage() }, buildMainMenu()];
   }
 
-  function getCurrentField(session) {
-    const fields = FLOW_FIELDS[session.flowType] || [];
-    return fields[session.fieldIndex] || null;
+  function startServiceCollection(session) {
+    session.mode = "service_collect";
+    session.serviceFieldIndex = 0;
+    session.serviceData = {};
+    session.hasSeenWelcome = true;
+    return [{ kind: "text", text: SERVICE_FIELDS[0].prompt }];
   }
 
-  function getNextPrompt(session) {
-    const fields = FLOW_FIELDS[session.flowType] || [];
-    while (session.fieldIndex < fields.length) {
-      const field = fields[session.fieldIndex];
+  function submitServiceField(session, value) {
+    const currentField = SERVICE_FIELDS[session.serviceFieldIndex];
+    if (!currentField) return "";
 
-      if (field.key === "phone" && session.phoneHint && isValidPhone(session.phoneHint)) {
-        session.data.phone = session.phoneHint;
-        session.fieldIndex += 1;
-        continue;
-      }
-
-      if (session.data[field.key]) {
-        session.fieldIndex += 1;
-        continue;
-      }
-
-      return field.prompt;
-    }
-    return "";
-  }
-
-  function submitField(session, rawInput) {
-    const field = getCurrentField(session);
-    if (!field) return "";
-
-    const value = sanitizeUserText(rawInput);
-    if (!value) {
-      return field.prompt;
+    const cleanValue = sanitizeUserText(value);
+    if (!cleanValue) {
+      return currentField.prompt;
     }
 
-    const maxLength = Number(field.maxLength || 320);
-    if (value.length > maxLength) {
+    const maxLength = Number(currentField.maxLength || MAX_FIELD_LENGTH_DEFAULT);
+    if (cleanValue.length > maxLength) {
       return `Please keep your response within ${maxLength} characters.`;
     }
 
-    if (typeof field.validator === "function") {
-      const validationError = field.validator(value);
-      if (validationError) {
-        return validationError;
-      }
-    }
+    session.serviceData[currentField.key] = cleanValue;
+    session.serviceFieldIndex += 1;
 
-    session.data[field.key] =
-      typeof field.normalizer === "function" ? field.normalizer(value) : value;
-    session.fieldIndex += 1;
-
-    return getNextPrompt(session);
+    const nextField = SERVICE_FIELDS[session.serviceFieldIndex];
+    return nextField ? nextField.prompt : "";
   }
 
-  async function completeFlow(userId, phone, session, channel) {
-    const completedFlowType = session.flowType;
-    const leadTypeMap = {
-      quote: "quotation",
-      service: "service_request",
-      sales: "sales_contact"
-    };
-
+  async function completeServiceRequest(userId, phone, channel, session) {
     const lead = {
       source: channel === "twilio" ? "twilio_whatsapp" : "whatsapp_business_api",
-      leadType: leadTypeMap[session.flowType] || session.flowType,
+      leadType: "service_request",
       userId,
       phone,
       timestamp: new Date().toISOString(),
-      ...session.data
+      name: session.serviceData.name || "",
+      location: session.serviceData.city || "",
+      deviceType: session.serviceData.machineType || "",
+      problemDescription: session.serviceData.issueDescription || ""
     };
 
     await saveLead(lead);
 
-    const completionMessageByFlow = {
-      quote:
-        "Thank you. Your quotation request is submitted. Pricing depends on model and quantity. Our sales team will contact you shortly.",
-      service:
-        "Thank you. Your repair/service request is submitted. Our support team will contact you shortly.",
-      sales: "Thank you. Your sales callback request is submitted. Our sales team will contact you shortly."
-    };
-
     session.mode = "idle";
-    session.flowType = "";
-    session.fieldIndex = 0;
-    session.data = {};
-    session.selectedCategory = "";
+    session.serviceFieldIndex = 0;
+    session.serviceData = {};
 
     return [
       {
         kind: "text",
-        text: completionMessageByFlow[completedFlowType] || "Thank you. Your request is submitted."
-      },
-      buildPostCompletionButtons()
+        text: withClosing("Thank you. Our service team will contact you shortly.")
+      }
     ];
   }
 
-  async function routeMenu(session, commandId) {
-    session.selectedCategory = "";
-
-    if (commandId === "menu_product_info") {
-      return [buildCategoryMenu()];
-    }
-
-    if (commandId === "menu_quote") {
-      startFlow(session, "quote");
+  function getMenuResponse(commandId, session) {
+    if (commandId === "menu_1") {
       return [
         {
           kind: "text",
-          text: "Pricing depends on model and quantity. Please share a few details for quotation."
-        },
-        { kind: "text", text: getNextPrompt(session) }
+          text: withClosing(
+            [
+              "Currency Counting Machines:",
+              "- Fast and accurate note counting",
+              "- Suitable for banks, shops, and cash counters",
+              "- Helps reduce manual counting errors",
+              "",
+              "Would you like price details or a demo?"
+            ].join("\n")
+          )
+        }
       ];
     }
 
-    if (commandId === "menu_service") {
-      startFlow(session, "service");
+    if (commandId === "menu_2") {
       return [
         {
           kind: "text",
-          text: "For repair/service support, please share a few details."
-        },
-        { kind: "text", text: getNextPrompt(session) }
+          text: withClosing(
+            [
+              "Fake Note Detectors:",
+              "- Detect suspicious and counterfeit notes quickly",
+              "- Improves cash handling security",
+              "- Easy to use at billing and cashier counters"
+            ].join("\n")
+          )
+        }
       ];
     }
 
-    if (commandId === "menu_contact_sales") {
-      startFlow(session, "sales");
+    if (commandId === "menu_3") {
       return [
-        { kind: "text", text: "Please share details and our sales team will contact you quickly." },
-        { kind: "text", text: getNextPrompt(session) }
+        {
+          kind: "text",
+          text: withClosing(
+            [
+              "Billing Machines & Software:",
+              "- Suitable for shops and businesses",
+              "- Supports faster billing operations",
+              "- Helps with daily sales and invoice workflow"
+            ].join("\n")
+          )
+        }
       ];
     }
 
-    if (commandId === "menu_company_info") {
-      return [{ kind: "text", text: getCompanyInfoMessage() }, buildMainMenu()];
+    if (commandId === "menu_4") {
+      return [
+        {
+          kind: "text",
+          text: withClosing(
+            [
+              "Gold Testing Machines:",
+              "- Used by jewellery shops for purity checking",
+              "- Reliable and quick testing support",
+              "- Helps improve customer trust"
+            ].join("\n")
+          )
+        }
+      ];
+    }
+
+    if (commandId === "menu_5") {
+      return [
+        {
+          kind: "text",
+          text: withClosing(
+            [
+              "Safes & Lockers:",
+              "- Secure storage for cash and important documents",
+              "- Suitable for shops, offices, and businesses",
+              "- Designed for daily security needs"
+            ].join("\n")
+          )
+        }
+      ];
+    }
+
+    if (commandId === "menu_6") {
+      return startServiceCollection(session);
+    }
+
+    if (commandId === "menu_7") {
+      return [{ kind: "text", text: withClosing(getContactMessage()) }];
     }
 
     return [];
   }
 
-  async function routeCategorySelect(session, categoryId) {
-    const category = getCategoryById(categoryId);
-    if (!category) return [];
-
-    session.selectedCategory = category.id;
-
-    return [
-      {
-        kind: "text",
-        text: `${category.title}\n${category.shortDescription}`
-      },
-      buildCategoryActions(category.id)
-    ];
-  }
-
-  async function routeCategoryAction(session, actionId) {
-    const [, actionType, categoryId] = actionId.match(/^act_(view|quote|sales)_(.+)$/) || [];
-    if (!actionType || !categoryId) {
-      return [];
-    }
-
-    const category = getCategoryById(categoryId);
-    if (!category) {
-      return [{ kind: "text", text: "Please choose a valid product category." }, buildCategoryMenu()];
-    }
-
-    if (actionType === "view") {
-      return [{ kind: "text", text: category.details }, buildCategoryActions(category.id)];
-    }
-
-    if (actionType === "quote") {
-      startFlow(session, "quote", { productInterestedIn: category.title });
-      return [
-        {
-          kind: "text",
-          text: "Pricing depends on model and quantity. Please share a few details for quotation."
-        },
-        { kind: "text", text: getNextPrompt(session) }
-      ];
-    }
-
-    startFlow(session, "sales", { requirement: `Need details for ${category.title}` });
-    return [
-      { kind: "text", text: "Please share details and our sales team will connect shortly." },
-      { kind: "text", text: getNextPrompt(session) }
-    ];
-  }
-
   async function handleIncoming({ userId, phone, text, interactiveId, channel = "meta" }) {
     const sanitizedText = sanitizeUserText(text);
     const normalized = normalizeText(sanitizedText);
-    const safeInteractiveId = sanitizeUserText(interactiveId).slice(0, 160);
+    const safeInteractiveId = sanitizeUserText(interactiveId).slice(0, 80);
     const session = getSession(userId, phone);
 
     if (sanitizedText.length > MAX_INCOMING_TEXT_LENGTH) {
@@ -627,67 +364,54 @@ function createBot({ saveLead }) {
       ];
     }
 
-    if (!normalized && !safeInteractiveId) {
-      resetSession(userId, phone);
-      return [{ kind: "text", text: getWelcomeMessage() }, buildMainMenu()];
+    if (!session.hasSeenWelcome) {
+      return showWelcome(session);
     }
 
-    if (isGreeting(normalized) || isMenuRequest(normalized)) {
-      resetSession(userId, phone);
-      return [{ kind: "text", text: getWelcomeMessage() }, buildMainMenu()];
+    if (isGreetingLike(normalized) || isMenuLike(normalized)) {
+      return showWelcome(session);
     }
 
-    const commandId =
-      safeInteractiveId ||
-      mapTextToCommand(normalized) ||
-      mapTextToCategoryAction(normalized, session.selectedCategory);
+    const commandId = safeInteractiveId || mapTextToCommand(normalized);
 
-    if (session.mode === "collecting") {
-      const isExplicitMenuJump =
-        (safeInteractiveId && commandId && commandId.startsWith("menu_")) || isMenuRequest(normalized);
-
-      if (isExplicitMenuJump) {
+    if (session.mode === "service_collect") {
+      if (commandId && (commandId.startsWith("menu_") || commandId === "menu_home")) {
         session.mode = "idle";
-        session.flowType = "";
-        session.fieldIndex = 0;
-        session.data = {};
-        session.selectedCategory = "";
-        if (commandId && commandId.startsWith("menu_")) {
-          return routeMenu(session, commandId);
+        session.serviceFieldIndex = 0;
+        session.serviceData = {};
+
+        if (commandId === "menu_home") {
+          return showWelcome(session);
         }
-        return [{ kind: "text", text: getWelcomeMessage() }, buildMainMenu()];
+
+        const menuResponse = getMenuResponse(commandId, session);
+        if (menuResponse.length > 0) {
+          return menuResponse;
+        }
       }
 
-      const prompt = submitField(session, sanitizedText);
-      if (prompt) {
-        return [{ kind: "text", text: prompt }];
+      const nextPrompt = submitServiceField(session, sanitizedText);
+      if (nextPrompt) {
+        return [{ kind: "text", text: nextPrompt }];
       }
-      return completeFlow(userId, phone, session, channel);
+      return completeServiceRequest(userId, phone, channel, session);
     }
 
     if (commandId === "menu_home") {
-      resetSession(userId, phone);
-      return [{ kind: "text", text: getWelcomeMessage() }, buildMainMenu()];
+      return showWelcome(session);
     }
 
     if (commandId && commandId.startsWith("menu_")) {
-      const response = await routeMenu(session, commandId);
-      if (response.length > 0) return response;
-    }
-
-    if (commandId && commandId.startsWith("cat_")) {
-      return routeCategorySelect(session, commandId);
-    }
-
-    if (commandId && commandId.startsWith("act_")) {
-      return routeCategoryAction(session, commandId);
+      const response = getMenuResponse(commandId, session);
+      if (response.length > 0) {
+        return response;
+      }
     }
 
     return [
       {
         kind: "text",
-        text:
-          "I can assist with IDEAL AUTOMATION products, quotation, repair/service, and sales support. Please choose an option below."
+        text: "Please choose from options 1 to 7 so we can assist you quickly."
       },
       buildMainMenu()
     ];
@@ -699,13 +423,19 @@ function createBot({ saveLead }) {
     _internals: {
       sessions,
       mapTextToCommand,
-      isValidPhone,
-      cleanPhone,
-      buildMainMenu,
-      buildCategoryMenu,
-      mapTextToCategoryAction
+      buildMainMenu
     }
   };
+}
+
+function isGreetingLike(normalizedText) {
+  return ["hi", "hello", "hey", "namaste"].some((value) => matchesCommandWord(normalizedText, value));
+}
+
+function isMenuLike(normalizedText) {
+  return ["menu", "home", "restart", "reset", "start"].some((value) =>
+    matchesCommandWord(normalizedText, value)
+  );
 }
 
 module.exports = {
