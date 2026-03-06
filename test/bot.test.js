@@ -11,7 +11,7 @@ function createTestBot(savedLeads) {
   });
 }
 
-test("first message returns welcome and 7-option menu", async () => {
+test("first message returns welcome text with 7 options", async () => {
   const savedLeads = [];
   const bot = createTestBot(savedLeads);
 
@@ -21,11 +21,11 @@ test("first message returns welcome and 7-option menu", async () => {
     text: "hello"
   });
 
-  assert.equal(response.length, 2);
+  assert.equal(response.length, 1);
   assert.equal(response[0].kind, "text");
   assert.match(response[0].text, /Welcome to IDEAL AUTOMATION/i);
-  assert.equal(response[1].kind, "list");
-  assert.equal(response[1].sections[0].rows.length, 7);
+  assert.match(response[0].text, /1️⃣ Currency Counting Machines/i);
+  assert.match(response[0].text, /7️⃣ Contact Us/i);
 });
 
 test("option 1 returns currency machine info with price/demo question", async () => {
@@ -105,4 +105,20 @@ test("rejects oversized incoming messages", async () => {
   });
 
   assert.match(response[0].text, /Please keep your message under/i);
+});
+
+test("suppresses duplicate inbound message within short window", async () => {
+  const savedLeads = [];
+  const bot = createTestBot(savedLeads);
+  const payload = {
+    userId: "u6",
+    phone: "919444444444",
+    text: "hello"
+  };
+
+  const first = await bot.handleIncoming(payload);
+  assert.equal(first.length, 1);
+
+  const second = await bot.handleIncoming(payload);
+  assert.equal(second.length, 0);
 });
